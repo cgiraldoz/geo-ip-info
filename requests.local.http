@@ -1,0 +1,3 @@
+### GET request to the root path
+GET http://localhost:3000/
+###
