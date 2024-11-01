@@ -1,7 +1,8 @@
 package api
 
 import (
-	"github.com/cgiraldoz/geo-ip-info/internal/geolite"
+	"github.com/cgiraldoz/geo-ip-info/internal/cache"
+	"github.com/cgiraldoz/geo-ip-info/internal/services"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -10,9 +11,23 @@ func StartAPI() {
 	app := fiber.New()
 
 	app.Get("/", func(c *fiber.Ctx) error {
-		lite := geolite.GeoLite{}
-		info := lite.GetLocation("186.154.207.219")
-		return c.JSON(info)
+		ctx := c.Context()
+		redisService := services.NewDefaultRedisService()
+		client := cache.NewDefaultCache(redisService).NewClient()
+
+		if err := client.Set(ctx, "key", "Cristian", 0).Err(); err != nil {
+			panic(err)
+		}
+
+		val, err := client.Get(ctx, "key").Result()
+		if err != nil {
+			panic(err)
+		}
+
+		return c.SendString(val)
+		//lite := geolite.NewGeoLite()
+		//info := lite.GetLocation("103.103.184.1")
+		//return c.JSON(info)
 	})
 
 	err := app.Listen(":3000")
