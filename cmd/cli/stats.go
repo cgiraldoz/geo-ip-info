@@ -1,14 +1,18 @@
 package cli
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/cgiraldoz/geo-ip-info/internal/cache"
+	"github.com/spf13/cobra"
+)
 
-func NewStatsCmd() *cobra.Command {
+func NewStatsCmd(redisCache cache.Cache) *cobra.Command {
 	return &cobra.Command{
 		Use:   "stats",
 		Short: "View usage distance statistic of the service",
 		Long:  `Display distance statistics for service usage.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			println("Stats command executed")
+			println(redisCache)
 		},
 	}
 }

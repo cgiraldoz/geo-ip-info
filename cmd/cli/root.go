@@ -2,11 +2,13 @@ package cli
 
 import (
 	"fmt"
+	"github.com/cgiraldoz/geo-ip-info/internal/cache"
 	"github.com/spf13/cobra"
 )
 
 var (
-	rootCmd = &cobra.Command{
+	redisCache cache.Cache
+	rootCmd    = &cobra.Command{
 		Use:     "gip [ip]",
 		Short:   "A CLI for querying IP address geolocation data.",
 		Long:    "Geo IP Info is a CLI for querying IP address geolocation data.",
@@ -22,10 +24,11 @@ var (
 )
 
 func init() {
-	rootCmd.AddCommand(NewStatsCmd())
-	rootCmd.AddCommand(NewApiCmd())
+	rootCmd.AddCommand(NewStatsCmd(redisCache))
+	rootCmd.AddCommand(NewApiCmd(redisCache))
 }
 
-func Execute() error {
+func Execute(rc cache.Cache) error {
+	redisCache = rc
 	return rootCmd.Execute()
 }

@@ -1,7 +1,11 @@
 package cache
 
-import "github.com/redis/go-redis/v9"
+import (
+	"context"
+	"time"
+)
 
 type Cache interface {
-	NewClient() *redis.Client
+	Exists(ctx context.Context, key string) (int64, error)
+	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error
 }
