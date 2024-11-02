@@ -2,21 +2,26 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/cgiraldoz/geo-ip-info/cmd/cli"
+	"github.com/cgiraldoz/geo-ip-info/config"
 	"github.com/cgiraldoz/geo-ip-info/internal/cache"
 	"github.com/cgiraldoz/geo-ip-info/internal/http"
 	"github.com/cgiraldoz/geo-ip-info/internal/services"
+	"github.com/spf13/viper"
 	"log"
-	"time"
 )
 
 func main() {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	if err := config.LoadConfigurations(); err != nil {
+		log.Fatalf("Error loading configurations: %v", err)
+	}
+
+	ctx, cancel := createContext()
 	defer cancel()
 
-	redisCache := cache.NewRedisCache("localhost:6379", "", 0)
-
-	httpClient := http.NewDefaultHttpClient(10 * time.Second)
+	redisCache := createRedisCache()
+	httpClient := createHTTPClient()
 
 	preFetchService := services.NewDefaultPrefetchDataService(redisCache, httpClient)
 
@@ -27,4 +32,23 @@ func main() {
 	if err := cli.Execute(redisCache); err != nil {
 		log.Fatalf("Error executing CLI: %v", err)
 	}
+}
+
+func createContext() (context.Context, context.CancelFunc) {
+	contextTimeout := viper.GetDuration("context.timeout")
+	return context.WithTimeout(context.Background(), contextTimeout)
+}
+
+func createRedisCache() *cache.RedisCache {
+	redisHost := viper.GetString("redis.host")
+	redisPort := viper.GetInt("redis.port")
+	redisAddress := fmt.Sprintf("%s:%d", redisHost, redisPort)
+	redisPassword := viper.GetString("redis.password")
+	redisDB := viper.GetInt("redis.db")
+	return cache.NewRedisCache(redisAddress, redisPassword, redisDB)
+}
+
+func createHTTPClient() *http.DefaultHttpClient {
+	httpTimeout := viper.GetDuration("http.timeout")
+	return http.NewDefaultHttpClient(httpTimeout)
 }

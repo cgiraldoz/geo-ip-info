@@ -1,0 +1,15 @@
+app:
+  port: 3000
+  env: "development"
+
+redis:
+  host: "localhost"
+  port: 6379
+  password: ""
+  db: 0
+
+http:
+  timeout: '10s'
+
+context:
+  timeout: '10s'
