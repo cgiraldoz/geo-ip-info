@@ -7,6 +7,7 @@ import (
 	"github.com/cgiraldoz/geo-ip-info/internal/cache"
 	"github.com/cgiraldoz/geo-ip-info/internal/http"
 	"github.com/gofiber/fiber/v2/log"
+	"github.com/spf13/viper"
 	"io"
 	"sync"
 	"time"
@@ -22,16 +23,28 @@ func NewDefaultPrefetchDataService(cache cache.Cache, httpClient http.Client) *D
 }
 
 func (pd *DefaultPrefetchDataService) PreFetchData(ctx context.Context) error {
-	urls := map[string]struct {
+	urlConfigs := viper.GetStringMap("prefetch.urls")
+
+	urls := make(map[string]struct {
 		url string
 		ttl time.Duration
-	}{
-		"countries":  {"https://restcountries.com/v3.1/all?fields=name,cca3,currencies,languages,latlng,timezones", 7 * 24 * time.Hour},
-		"currencies": {"http://data.fixer.io/api/latest?access_key={TOKEN}", 24 * time.Hour},
+	})
+
+	for key, config := range urlConfigs {
+		conf := config.(map[string]interface{})
+		url := conf["url"].(string)
+		ttl, err := time.ParseDuration(conf["ttl"].(string))
+		if err != nil {
+			return fmt.Errorf("invalid TTL format for %s: %v", key, err)
+		}
+		urls[key] = struct {
+			url string
+			ttl time.Duration
+		}{url: url, ttl: ttl}
 	}
 
 	var wg sync.WaitGroup
-	var errCh = make(chan error, len(urls))
+	errCh := make(chan error, len(urls))
 
 	for key, config := range urls {
 		wg.Add(1)
