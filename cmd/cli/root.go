@@ -1,31 +1,23 @@
 package cli
 
 import (
-	"fmt"
-	"github.com/cgiraldoz/geo-ip-info/internal/cache"
+	"github.com/cgiraldoz/geo-ip-info/internal/interfaces"
 	"github.com/spf13/cobra"
 )
 
 var rootCmd = &cobra.Command{
-	Use:     "gip [ip]",
-	Short:   "A CLI for querying IP address geolocation data.",
-	Long:    "Geo IP Info is a CLI for querying IP address geolocation data.",
-	Example: "gip 0.0.0.0\ngip stats",
-	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) == 1 {
-			fmt.Printf("Consulting geolocation for IP: %s\n", args[0])
-		} else {
-			fmt.Println("Please provide a valid IP address or command.")
-		}
-	},
+	Use:   "gip",
+	Short: "A CLI for querying IP address geolocation data.",
+	Long:  "Geo IP Info is a CLI for querying IP address geolocation data.",
 }
 
-func InitializeCommands(redisCache cache.Cache) {
+func InitializeCommands(redisCache interfaces.Cache, httpClient interfaces.Client) {
 	rootCmd.AddCommand(NewStatsCmd(redisCache))
 	rootCmd.AddCommand(NewApiCmd(redisCache))
+	rootCmd.AddCommand(NewIPCmd(redisCache, httpClient))
 }
 
-func Execute(redisCache cache.Cache) error {
-	InitializeCommands(redisCache)
+func Execute(redisCache interfaces.Cache, httpClient interfaces.Client) error {
+	InitializeCommands(redisCache, httpClient)
 	return rootCmd.Execute()
 }

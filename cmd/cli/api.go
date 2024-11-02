@@ -2,11 +2,11 @@ package cli
 
 import (
 	"github.com/cgiraldoz/geo-ip-info/cmd/api"
-	"github.com/cgiraldoz/geo-ip-info/internal/cache"
+	"github.com/cgiraldoz/geo-ip-info/internal/interfaces"
 	"github.com/spf13/cobra"
 )
 
-func NewApiCmd(redisCache cache.Cache) *cobra.Command {
+func NewApiCmd(redisCache interfaces.Cache) *cobra.Command {
 	return &cobra.Command{
 		Use:     "api",
 		Short:   "Start the Geo IP Info API server.",

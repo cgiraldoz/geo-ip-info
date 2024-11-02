@@ -4,8 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/cgiraldoz/geo-ip-info/internal/cache"
-	"github.com/cgiraldoz/geo-ip-info/internal/http"
+	"github.com/cgiraldoz/geo-ip-info/internal/interfaces"
 	"github.com/gofiber/fiber/v2/log"
 	"github.com/spf13/viper"
 	"io"
@@ -14,11 +13,11 @@ import (
 )
 
 type DefaultPrefetchDataService struct {
-	cache      cache.Cache
-	httpClient http.Client
+	cache      interfaces.Cache
+	httpClient interfaces.Client
 }
 
-func NewDefaultPrefetchDataService(cache cache.Cache, httpClient http.Client) *DefaultPrefetchDataService {
+func NewDefaultPrefetchDataService(cache interfaces.Cache, httpClient interfaces.Client) *DefaultPrefetchDataService {
 	return &DefaultPrefetchDataService{cache: cache, httpClient: httpClient}
 }
 

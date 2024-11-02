@@ -29,7 +29,7 @@ func main() {
 		log.Fatalf("Error prefetching data: %v", err)
 	}
 
-	if err := cli.Execute(redisCache); err != nil {
+	if err := cli.Execute(redisCache, httpClient); err != nil {
 		log.Fatalf("Error executing CLI: %v", err)
 	}
 }

@@ -1,11 +1,11 @@
 package api
 
 import (
-	"github.com/cgiraldoz/geo-ip-info/internal/cache"
+	"github.com/cgiraldoz/geo-ip-info/internal/interfaces"
 	"github.com/gofiber/fiber/v2"
 )
 
-func StartAPI(redisCache cache.Cache) {
+func StartAPI(redisCache interfaces.Cache) {
 
 	app := fiber.New()
 
@@ -25,7 +25,7 @@ func StartAPI(redisCache cache.Cache) {
 
 		return c.SendString(val)
 		//lite := geolite.NewGeoLite()
-		//info := lite.GetLocation("103.103.184.1")
+		//info := lite.GetIPLocation("103.103.184.1")
 		//return c.JSON(info)*/
 		println(redisCache)
 		return c.SendString("Hello, World!")

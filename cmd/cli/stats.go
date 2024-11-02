@@ -1,11 +1,11 @@
 package cli
 
 import (
-	"github.com/cgiraldoz/geo-ip-info/internal/cache"
+	"github.com/cgiraldoz/geo-ip-info/internal/interfaces"
 	"github.com/spf13/cobra"
 )
 
-func NewStatsCmd(redisCache cache.Cache) *cobra.Command {
+func NewStatsCmd(redisCache interfaces.Cache) *cobra.Command {
 	return &cobra.Command{
 		Use:   "stats",
 		Short: "View usage distance statistic of the service",

@@ -1,3 +1,4 @@
 .idea
 requests.local.http
 .env
+tmp

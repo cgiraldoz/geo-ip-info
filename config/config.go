@@ -28,9 +28,16 @@ func LoadConfigurations() error {
 		log.Fatal("FIXER_API_KEY is not set")
 	}
 
+	ipapiApiKey := viper.GetString("IPAPI_API_KEY")
+	if ipapiApiKey == "" {
+		log.Fatal("IPAPI_API_KEY is not set")
+	}
+
 	for _, key := range viper.AllKeys() {
 		value := viper.GetString(key)
-		viper.Set(key, strings.ReplaceAll(value, "FIXER_API_KEY", fixerApiKey))
+		value = strings.ReplaceAll(value, "FIXER_API_KEY", fixerApiKey)
+		value = strings.ReplaceAll(value, "IPAPI_API_KEY", ipapiApiKey)
+		viper.Set(key, value)
 	}
 	return nil
 }
