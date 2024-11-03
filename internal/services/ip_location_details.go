@@ -61,6 +61,13 @@ func GetIPLocationDetails(redisCache interfaces.Cache, httpClient interfaces.Cli
 		return nil, fmt.Errorf("error getting IP location: %w", err)
 	}
 
+	countryCacheKey := "country:" + info.IsoCode
+	cachedDetails, err := getCountryDetailsFromCache(ctx, redisCache, countryCacheKey)
+	if err == nil && cachedDetails != nil {
+		updateCurrentTimeByTimezone(cachedDetails)
+		return cachedDetails, nil
+	}
+
 	country, err := getCountryFromCache(ctx, redisCache, info.IsoCode)
 	if err != nil {
 		return nil, err
@@ -77,23 +84,66 @@ func GetIPLocationDetails(redisCache interfaces.Cache, httpClient interfaces.Cli
 	}
 
 	relativeRates := calculateRelativeRates(country.Currencies, ratesData.Rates, usdRate)
+	currentTimeByTimezone := calculateCurrentTimeByTimezone(country.Timezones)
 
-	currentTimeByTimezone := make(map[string]string)
-	for _, timezone := range country.Timezones {
-		offset, err := parseTimezoneOffset(timezone)
-		if err == nil {
-			currentTimeByTimezone[timezone] = time.Now().UTC().Add(offset).Format(time.RFC1123)
-		}
-	}
-
-	return &IPLocationDetails{
+	ipDetails := &IPLocationDetails{
 		CountryName:           country.Name.Common,
 		RelativeRates:         relativeRates,
 		CurrentTimeByTimezone: currentTimeByTimezone,
 		Currencies:            country.Currencies,
 		Cca2:                  country.Cca2,
-	}, nil
+	}
 
+	err = cacheCountryDetails(ctx, redisCache, countryCacheKey, ipDetails)
+	if err != nil {
+		return nil, fmt.Errorf("error caching country details: %w", err)
+	}
+
+	return ipDetails, nil
+}
+
+func getCountryDetailsFromCache(ctx context.Context, cache interfaces.Cache, countryCacheKey string) (*IPLocationDetails, error) {
+	data, err := cache.Get(ctx, countryCacheKey)
+	if err != nil || data == nil {
+		return nil, err
+	}
+
+	var details IPLocationDetails
+	if err := json.Unmarshal(data, &details); err != nil {
+		return nil, fmt.Errorf("error unmarshalling country details from cache: %w", err)
+	}
+
+	return &details, nil
+}
+
+func cacheCountryDetails(ctx context.Context, cache interfaces.Cache, countryCacheKey string, details *IPLocationDetails) error {
+	data, err := json.Marshal(details)
+	if err != nil {
+		return fmt.Errorf("error marshalling country details for cache: %w", err)
+	}
+
+	ttl := viper.GetDuration("cache.ip_location_details.ttl")
+	return cache.Set(ctx, countryCacheKey, data, ttl)
+}
+
+func updateCurrentTimeByTimezone(details *IPLocationDetails) {
+	for timezone := range details.CurrentTimeByTimezone {
+		offset, err := parseTimezoneOffset(timezone)
+		if err == nil {
+			details.CurrentTimeByTimezone[timezone] = time.Now().UTC().Add(offset).Format(time.RFC1123)
+		}
+	}
+}
+
+func calculateCurrentTimeByTimezone(timezones []string) map[string]string {
+	currentTimeByTimezone := make(map[string]string)
+	for _, timezone := range timezones {
+		offset, err := parseTimezoneOffset(timezone)
+		if err == nil {
+			currentTimeByTimezone[timezone] = time.Now().UTC().Add(offset).Format(time.RFC1123)
+		}
+	}
+	return currentTimeByTimezone
 }
 
 func getCountryFromCache(ctx context.Context, cache interfaces.Cache, isoCode string) (Country, error) {

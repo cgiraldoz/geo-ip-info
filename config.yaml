@@ -25,3 +25,7 @@ prefetch:
 
 ipapi:
   url: "http://api.ipapi.com/api/{ip}?access_key=IPAPI_API_KEY&fields=country_code,country_name"
+
+cache:
+  ip_location_details:
+    ttl: "24h"
