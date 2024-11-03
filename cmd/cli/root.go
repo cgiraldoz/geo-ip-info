@@ -13,7 +13,7 @@ var rootCmd = &cobra.Command{
 
 func InitializeCommands(redisCache interfaces.Cache, httpClient interfaces.Client) {
 	rootCmd.AddCommand(NewStatsCmd(redisCache))
-	rootCmd.AddCommand(NewApiCmd(redisCache))
+	rootCmd.AddCommand(NewApiCmd(redisCache, httpClient))
 	rootCmd.AddCommand(NewIPCmd(redisCache, httpClient))
 }
 
