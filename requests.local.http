@@ -1,0 +1,5 @@
+### GET ip details from google ip
+GET http://localhost:3000/api/ip/8.8.8.8
+
+### GET service statistics.
+GET http://localhost:3000/api/stats

@@ -38,11 +38,7 @@ docker-build: build
 	docker build -t $(REGISTRY)/$(USER)/$(APP):$(TAG) .
 
 ## docker-push: Push the Docker image
-docker-push: docker-login docker-build
+docker-push: docker-build
 	docker tag $(REGISTRY)/$(USER)/$(APP):$(TAG) $(REGISTRY)/$(USER)/$(APP):$(COMMIT_SHA)
 	docker push $(REGISTRY)/$(USER)/$(APP):$(TAG)
 	docker push $(REGISTRY)/$(USER)/$(APP):$(COMMIT_SHA)
-
-## docker-run: Run the Docker image
-docker-run: docker-build
-	docker run -it --rm $(REGISTRY)/$(USER)/$(APP):$(TAG)

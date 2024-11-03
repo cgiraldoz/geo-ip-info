@@ -1,3 +1,4 @@
+
 services:
     redis:
         image: redis
@@ -7,11 +8,25 @@ services:
         volumes:
             - redis_data:/data
         entrypoint: redis-server --appendonly yes
+        networks:
+            - redis_network
+
+    app:
+        image: ghcr.io/cgiraldoz/geo-ip-info:latest
+        ports:
+            - "3000:3000"
+        environment:
+            - FIXER_API_KEY=${FIXER_API_KEY}
+            - IPAPI_API_KEY=${IPAPI_API_KEY}
+        depends_on:
+            - redis
+        networks:
+            - redis_network
 
 volumes:
     redis_data:
         name: redis_data
 
 networks:
-    default:
+    redis_network:
         name: redis_network
