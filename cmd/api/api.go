@@ -12,6 +12,7 @@ type IPDetails struct {
 	Currencies            map[string]services.Currency `json:"currencies"`
 	RelativeRates         map[string]float64           `json:"relative_rates"`
 	CurrentTimeByTimezone map[string]string            `json:"current_time_by_timezone"`
+	DistanceToBuenosAires float64                      `json:"distance_to_buenos_aires"`
 }
 
 func StartAPI(redisCache interfaces.Cache, httpClient interfaces.Client) {
@@ -33,6 +34,7 @@ func StartAPI(redisCache interfaces.Cache, httpClient interfaces.Client) {
 			Currencies:            ipDetails.Currencies,
 			RelativeRates:         ipDetails.RelativeRates,
 			CurrentTimeByTimezone: ipDetails.CurrentTimeByTimezone,
+			DistanceToBuenosAires: ipDetails.DistanceToBuenosAires,
 		})
 	})
 

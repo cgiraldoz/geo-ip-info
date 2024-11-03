@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/cgiraldoz/geo-ip-info/internal/interfaces"
@@ -45,6 +46,15 @@ type IPLocationDetails struct {
 	CurrentTimeByTimezone map[string]string
 	Currencies            map[string]Currency
 	Cca2                  string
+	LatLng                []float64
+	DistanceToBuenosAires float64
+}
+
+type DistanceStats struct {
+	FarthestDistance float64
+	ClosestDistance  float64
+	TotalDistance    float64
+	TotalRequests    int
 }
 
 func GetIPLocationDetails(redisCache interfaces.Cache, httpClient interfaces.Client, ip string) (*IPLocationDetails, error) {
@@ -65,6 +75,8 @@ func GetIPLocationDetails(redisCache interfaces.Cache, httpClient interfaces.Cli
 	cachedDetails, err := getCountryDetailsFromCache(ctx, redisCache, countryCacheKey)
 	if err == nil && cachedDetails != nil {
 		updateCurrentTimeByTimezone(cachedDetails)
+		cachedDetails.DistanceToBuenosAires = calculateDistanceToBuenosAires(cachedDetails.LatLng)
+		updateDistanceStats(ctx, redisCache, cachedDetails.LatLng)
 		return cachedDetails, nil
 	}
 
@@ -92,13 +104,15 @@ func GetIPLocationDetails(redisCache interfaces.Cache, httpClient interfaces.Cli
 		CurrentTimeByTimezone: currentTimeByTimezone,
 		Currencies:            country.Currencies,
 		Cca2:                  country.Cca2,
+		LatLng:                country.LatLng,
+		DistanceToBuenosAires: calculateDistanceToBuenosAires(country.LatLng),
 	}
 
 	err = cacheCountryDetails(ctx, redisCache, countryCacheKey, ipDetails)
 	if err != nil {
 		return nil, fmt.Errorf("error caching country details: %w", err)
 	}
-
+	updateDistanceStats(ctx, redisCache, ipDetails.LatLng)
 	return ipDetails, nil
 }
 
@@ -190,6 +204,85 @@ func calculateRelativeRates(currencies map[string]Currency, rates map[string]flo
 	return relativeRates
 }
 
+func updateDistanceStats(ctx context.Context, cache interfaces.Cache, countryLatLng []float64) {
+	if len(countryLatLng) < 2 {
+		fmt.Println("Error: countryLatLng does not contain valid coordinates")
+		return
+	}
+
+	buenosAiresLat, buenosAiresLng, err := getBuenosAiresLatLng()
+	if err != nil {
+		fmt.Printf("Error getting Buenos Aires coordinates: %v\n", err)
+		return
+	}
+
+	distance := calculateDistance(buenosAiresLat, buenosAiresLng, countryLatLng[0], countryLatLng[1])
+
+	stats, err := getDistanceStatsFromCache(ctx, cache)
+	if err != nil {
+		stats = &DistanceStats{
+			FarthestDistance: distance,
+			ClosestDistance:  distance,
+			TotalDistance:    distance,
+			TotalRequests:    1,
+		}
+	} else {
+		stats.TotalRequests++
+		stats.TotalDistance += distance
+		if distance > stats.FarthestDistance {
+			stats.FarthestDistance = distance
+		}
+		if distance < stats.ClosestDistance || stats.ClosestDistance == 0 {
+			stats.ClosestDistance = distance
+		}
+	}
+
+	err = cacheDistanceStats(ctx, cache, stats)
+	if err != nil {
+		fmt.Printf("Error caching distance stats: %v\n", err)
+	}
+}
+
+func getDistanceStatsFromCache(ctx context.Context, cache interfaces.Cache) (*DistanceStats, error) {
+	data, err := cache.Get(ctx, "distance_stats")
+	if err != nil || data == nil {
+		return nil, err
+	}
+
+	var stats DistanceStats
+	if err := json.Unmarshal(data, &stats); err != nil {
+		return nil, fmt.Errorf("error unmarshalling distance stats from cache: %w", err)
+	}
+
+	return &stats, nil
+}
+
+func cacheDistanceStats(ctx context.Context, cache interfaces.Cache, stats *DistanceStats) error {
+	data, err := json.Marshal(stats)
+	if err != nil {
+		return fmt.Errorf("error marshalling distance stats for cache: %w", err)
+	}
+
+	return cache.Set(ctx, "distance_stats", data, viper.GetDuration("cache.distance_stats.ttl"))
+}
+
+func calculateDistance(lat1, lon1, lat2, lon2 float64) float64 {
+	const earthRadiusKm = 6371.0
+	dLat := degreesToRadians(lat2 - lat1)
+	dLon := degreesToRadians(lon2 - lon1)
+
+	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
+		math.Cos(degreesToRadians(lat1))*math.Cos(degreesToRadians(lat2))*
+			math.Sin(dLon/2)*math.Sin(dLon/2)
+
+	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+	return earthRadiusKm * c
+}
+
+func degreesToRadians(deg float64) float64 {
+	return deg * math.Pi / 180
+}
+
 func parseTimezoneOffset(timezone string) (time.Duration, error) {
 	if len(timezone) < 9 || timezone[:3] != "UTC" {
 		return 0, fmt.Errorf("invalid timezone format")
@@ -209,4 +302,29 @@ func parseTimezoneOffset(timezone string) (time.Duration, error) {
 
 	offset := time.Duration(sign) * (time.Hour*time.Duration(hours) + time.Minute*time.Duration(minutes))
 	return offset, nil
+}
+
+func getBuenosAiresLatLng() (float64, float64, error) {
+	lat := viper.GetFloat64("fixed_location.argentina.latitude")
+	lng := viper.GetFloat64("fixed_location.argentina.longitude")
+
+	if lat == 0 && lng == 0 {
+		return 0, 0, fmt.Errorf("buenos Aires lat/lng not found or invalid in configuration")
+	}
+
+	return lat, lng, nil
+}
+
+func calculateDistanceToBuenosAires(countryLatLng []float64) float64 {
+	if len(countryLatLng) < 2 {
+		return 0
+	}
+
+	buenosAiresLat, buenosAiresLng, err := getBuenosAiresLatLng()
+	if err != nil {
+		fmt.Printf("error getting Buenos Aires coordinates: %v\n", err)
+		return 0
+	}
+
+	return calculateDistance(buenosAiresLat, buenosAiresLng, countryLatLng[0], countryLatLng[1])
 }

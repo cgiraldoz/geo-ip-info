@@ -29,3 +29,9 @@ ipapi:
 cache:
   ip_location_details:
     ttl: "24h"
+
+fixed_location:
+  argentina:
+    capital: "Buenos Aires"
+    latitude: -34.61
+    longitude: -58.38

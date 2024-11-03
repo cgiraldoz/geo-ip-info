@@ -33,13 +33,15 @@ func NewIPCmd(redisCache interfaces.Cache, httpClient interfaces.Client) *cobra.
 
 			cmd.Println("\nRelative Exchange Rates (compared to USD):")
 			for code, rate := range ipDetails.RelativeRates {
-				cmd.Printf("  - %s: %.4f\n", code, rate)
+				cmd.Printf("  - %s: %.2f\n", code, rate)
 			}
 
 			cmd.Println("\nCurrent Time by Timezone:")
 			for timezone, currentTime := range ipDetails.CurrentTimeByTimezone {
 				cmd.Printf("  - %s: %s\n", timezone, currentTime)
 			}
+
+			cmd.Printf("\nDistance to Buenos Aires: %.2f km\n", ipDetails.DistanceToBuenosAires)
 		},
 	}
 }
