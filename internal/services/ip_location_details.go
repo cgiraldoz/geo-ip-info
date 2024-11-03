@@ -51,10 +51,18 @@ type IPLocationDetails struct {
 }
 
 type DistanceStats struct {
-	FarthestDistance float64
-	ClosestDistance  float64
-	TotalDistance    float64
-	TotalRequests    int
+	FarthestDistance    float64
+	ClosestDistance     float64
+	TotalDistance       float64
+	TotalRequests       int
+	FarthestCountryName string
+	ClosestCountryName  string
+	CountryDistances    map[string]CountryDistance
+}
+
+type CountryDistance struct {
+	TotalDistance float64
+	Requests      int
 }
 
 func GetIPLocationDetails(redisCache interfaces.Cache, httpClient interfaces.Client, ip string) (*IPLocationDetails, error) {
@@ -76,7 +84,7 @@ func GetIPLocationDetails(redisCache interfaces.Cache, httpClient interfaces.Cli
 	if err == nil && cachedDetails != nil {
 		updateCurrentTimeByTimezone(cachedDetails)
 		cachedDetails.DistanceToBuenosAires = calculateDistanceToBuenosAires(cachedDetails.LatLng)
-		updateDistanceStats(ctx, redisCache, cachedDetails.LatLng)
+		updateDistanceStats(ctx, redisCache, cachedDetails.LatLng, cachedDetails.CountryName)
 		return cachedDetails, nil
 	}
 
@@ -112,7 +120,7 @@ func GetIPLocationDetails(redisCache interfaces.Cache, httpClient interfaces.Cli
 	if err != nil {
 		return nil, fmt.Errorf("error caching country details: %w", err)
 	}
-	updateDistanceStats(ctx, redisCache, ipDetails.LatLng)
+	updateDistanceStats(ctx, redisCache, ipDetails.LatLng, ipDetails.CountryName)
 	return ipDetails, nil
 }
 
@@ -204,7 +212,7 @@ func calculateRelativeRates(currencies map[string]Currency, rates map[string]flo
 	return relativeRates
 }
 
-func updateDistanceStats(ctx context.Context, cache interfaces.Cache, countryLatLng []float64) {
+func updateDistanceStats(ctx context.Context, cache interfaces.Cache, countryLatLng []float64, countryName string) {
 	if len(countryLatLng) < 2 {
 		fmt.Println("Error: countryLatLng does not contain valid coordinates")
 		return
@@ -218,24 +226,34 @@ func updateDistanceStats(ctx context.Context, cache interfaces.Cache, countryLat
 
 	distance := calculateDistance(buenosAiresLat, buenosAiresLng, countryLatLng[0], countryLatLng[1])
 
-	stats, err := getDistanceStatsFromCache(ctx, cache)
+	stats, err := GetDistanceStatsFromCache(ctx, cache)
 	if err != nil {
 		stats = &DistanceStats{
-			FarthestDistance: distance,
-			ClosestDistance:  distance,
-			TotalDistance:    distance,
-			TotalRequests:    1,
+			FarthestDistance:    distance,
+			ClosestDistance:     distance,
+			TotalDistance:       distance,
+			TotalRequests:       1,
+			FarthestCountryName: countryName,
+			ClosestCountryName:  countryName,
+			CountryDistances:    make(map[string]CountryDistance),
 		}
 	} else {
 		stats.TotalRequests++
 		stats.TotalDistance += distance
 		if distance > stats.FarthestDistance {
 			stats.FarthestDistance = distance
+			stats.FarthestCountryName = countryName
 		}
 		if distance < stats.ClosestDistance || stats.ClosestDistance == 0 {
 			stats.ClosestDistance = distance
+			stats.ClosestCountryName = countryName
 		}
 	}
+
+	countryStats := stats.CountryDistances[countryName]
+	countryStats.TotalDistance += distance
+	countryStats.Requests++
+	stats.CountryDistances[countryName] = countryStats
 
 	err = cacheDistanceStats(ctx, cache, stats)
 	if err != nil {
@@ -243,7 +261,7 @@ func updateDistanceStats(ctx context.Context, cache interfaces.Cache, countryLat
 	}
 }
 
-func getDistanceStatsFromCache(ctx context.Context, cache interfaces.Cache) (*DistanceStats, error) {
+func GetDistanceStatsFromCache(ctx context.Context, cache interfaces.Cache) (*DistanceStats, error) {
 	data, err := cache.Get(ctx, "distance_stats")
 	if err != nil || data == nil {
 		return nil, err
@@ -327,4 +345,20 @@ func calculateDistanceToBuenosAires(countryLatLng []float64) float64 {
 	}
 
 	return calculateDistance(buenosAiresLat, buenosAiresLng, countryLatLng[0], countryLatLng[1])
+}
+
+func CalculateWeightedAverageDistance(stats *DistanceStats) float64 {
+	totalWeightedDistance := 0.0
+	totalRequests := 0
+
+	for _, countryData := range stats.CountryDistances {
+		totalWeightedDistance += countryData.TotalDistance
+		totalRequests += countryData.Requests
+	}
+
+	if totalRequests == 0 {
+		return 0
+	}
+
+	return totalWeightedDistance / float64(totalRequests)
 }
