@@ -1,0 +1,37 @@
+app:
+  port: 3000
+  env: "development"
+
+redis:
+  host: "localhost"
+  port: 6379
+  password: ""
+  db: 0
+
+http:
+  timeout: '10s'
+
+context:
+  timeout: '10s'
+
+prefetch:
+  urls:
+    countries:
+      url: "https://restcountries.com/v3.1/all?fields=name,cca2,currencies,languages,latlng,timezones"
+      ttl: "168h"
+    currencies:
+      url: "http://data.fixer.io/api/latest?access_key=FIXER_API_KEY"
+      ttl: "24h"
+
+ipapi:
+  url: "http://api.ipapi.com/api/{ip}?access_key=IPAPI_API_KEY&fields=country_code,country_name"
+
+cache:
+  ip_location_details:
+    ttl: "24h"
+
+fixed_location:
+  argentina:
+    capital: "Buenos Aires"
+    latitude: -34.61
+    longitude: -58.38
