@@ -1,12 +1,9 @@
 package cli
 
 import (
-	"context"
-	"fmt"
 	"github.com/cgiraldoz/geo-ip-info/internal/interfaces"
 	"github.com/cgiraldoz/geo-ip-info/internal/services"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 func NewIPCmd(redisCache interfaces.Cache, httpClient interfaces.Client) *cobra.Command {
@@ -17,25 +14,32 @@ func NewIPCmd(redisCache interfaces.Cache, httpClient interfaces.Client) *cobra.
 		Args:    cobra.ExactArgs(1),
 		Example: "gip ip 8.8.8.8",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println(redisCache)
-			IpLocation, err := services.NewIPLocation(httpClient)
-			if err != nil {
-				fmt.Println("Error creating IP location service:", err)
-				return
-			}
-
-			contextTimeout := viper.GetDuration("context.timeout")
-			ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
-			defer cancel()
-
 			ip := args[0]
-			info, err := IpLocation.GetIPLocation(ctx, ip)
+			ipDetails, err := services.GetIPLocationDetails(redisCache, httpClient, ip)
+
 			if err != nil {
-				fmt.Println("Error getting IP location:", err)
+				cmd.PrintErrln(err)
 				return
 			}
 
-			fmt.Printf("Country: %s\n", info.Name)
+			cmd.Println("IP Location Details:")
+			cmd.Printf("\nCountry: %s\n", ipDetails.CountryName)
+			cmd.Printf("\nCountry Code: %s\n", ipDetails.Cca2)
+
+			cmd.Println("\nCurrencies:")
+			for code, currency := range ipDetails.Currencies {
+				cmd.Printf("  - %s: %s (%s)\n", code, currency.Name, currency.Symbol)
+			}
+
+			cmd.Println("\nRelative Exchange Rates (compared to USD):")
+			for code, rate := range ipDetails.RelativeRates {
+				cmd.Printf("  - %s: %.4f\n", code, rate)
+			}
+
+			cmd.Println("\nCurrent Time by Timezone:")
+			for timezone, currentTime := range ipDetails.CurrentTimeByTimezone {
+				cmd.Printf("  - %s: %s\n", timezone, currentTime)
+			}
 		},
 	}
 }

@@ -17,7 +17,7 @@ context:
 prefetch:
   urls:
     countries:
-      url: "https://restcountries.com/v3.1/all?fields=name,cca3,currencies,languages,latlng,timezones"
+      url: "https://restcountries.com/v3.1/all?fields=name,cca2,currencies,languages,latlng,timezones"
       ttl: "168h"
     currencies:
       url: "http://data.fixer.io/api/latest?access_key=FIXER_API_KEY"

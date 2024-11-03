@@ -27,3 +27,7 @@ func (r *RedisCache) Exists(ctx context.Context, key string) (int64, error) {
 func (r *RedisCache) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
 	return r.client.Set(ctx, key, value, expiration).Err()
 }
+
+func (r *RedisCache) Get(ctx context.Context, key string) ([]byte, error) {
+	return r.client.Get(ctx, key).Bytes()
+}
